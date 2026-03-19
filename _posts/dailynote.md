@@ -8,8 +8,8 @@
 - 初步看了BPE，明日尝试手写，这是语音和文本处理最重要的区别
 
 ToDoList：
-[] 完全手撕Transformer
-[] PositionEncoder，包括新变体
-[] BPE
+[x] 完全手撕Transformer
+[x] PositionEncoder，包括新变体
+[x] BPE
 [] 搭建环境（colab、Kaggle）
 [] github上传

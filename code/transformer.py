@@ -94,7 +94,7 @@ def get_sinusoidal_position_encoding(d_model=512, max_len=5000):
             pe[:, 0::2] = torch.sin(position * div_term)
             pe[:, 1::2] = torch.cos(position * div_term)
             pe = pe.unsqueeze(0) # (1, max_len, d_model)
-            self.register_buffer('pe', pe)
+            self.register_buffer('pe', pe) # 注册为buffer，不会被优化器更新
             
         def forward(self, x):
             x = x + self.pe[:, :x.size(1)]

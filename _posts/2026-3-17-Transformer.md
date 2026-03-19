@@ -47,6 +47,7 @@ Transformer模型没有捕捉顺序序列的能力，也就是说，无论句子
 
 ### 原始方案 - 正弦位置编码
 ![alt text](image-7.png)
+代码计算：10000^(-2i/d_model) = e^(-2i * ln(10000) / d_model)
 pos表示单词的位置，i表示单词的维度。
 之所以这么设计，是因为除了单词的绝对位置，相对位置也非常重要。
 sin（a+b） = sinacosb + cosasinb
@@ -56,11 +57,65 @@ cos（a+b） = cosacosb - sinasinb
 - 相对位置可线性变换：PE(pos+k) = f(PE(pos))
 - 外推性好，没见过的长度也能处理
 
+位置编码持久化存储：```self.register_buffer('pe', pe)```
+1. 持久化存储：将位置编码保存到模型状态字典中
+2. 设备同步：自动跟随模型移到GPU/CPU
+3. 不参与训练：不创建梯度，结神紫苑
+4. 访问方便：可以直接从模型中访问位置编码，无需额外计算
+
 ### 现代替代方案：可学习位置编码
+RoBERTa/GPT等使用
+
+```python
+pe = nn.Embeddin(max_seq_len, d_model)
+position = torch.arrag(seq_len, device=self.peweight.device)
+return self.pe(position)
+```
 
 ### 进阶方案：旋转位置编码 RoPE
+对Q、K进行旋转，计算score，value不旋转
 目前主流方案（LLaMA、Qwen等在用）
+优势：
+- 相对位置编码：注意力分数只依赖相对距离
+- 外推性好：可以处理未见过的序列长度
+- 参数量少：只需要学习一个旋转角度，而不是一个完整的位置编码向量
 
+```
+class RoPE(nn.Module):
+    """
+    旋转位置编码 - 通过旋转矩阵注入位置信息
+    """
+    
+    def __init__(self, dim, max_seq_len=2048, base=10000):
+        super().__init__()
+        
+        # 计算旋转角度，形状[dim/2]
+        inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+        self.register_buffer("inv_freq", inv_freq)
+        
+        # 预计算位置编码
+        positions = torch.arange(max_seq_len)
+        freqs = torch.outer(positions, inv_freq)  # [max_len, dim/2]，计算外积
+        
+        # 极坐标形式
+        emb = torch.cat([freqs, freqs], dim=-1)  # [max_len, dim]，每个复数对的两个维度使用相同的频率
+        self.register_buffer("cos_cached", emb.cos())
+        self.register_buffer("sin_cached", emb.sin())
+        
+    def forward(self, x, seq_len):
+        # x: [batch, n_heads, seq_len, head_dim]
+        cos = self.cos_cached[:seq_len]  # [seq_len, dim]
+        sin = self.sin_cached[:seq_len]
+        
+        # 旋转操作
+        x1, x2 = x[..., ::2], x[..., 1::2]  # 拆分为偶/奇
+        rotated = torch.cat([
+            x1 * cos - x2 * sin,
+            x1 * sin + x2 * cos
+        ], dim=-1)
+        
+        return rotated
+```
 
 # 总结
 - 优点
