@@ -1,0 +1,1 @@
+git clone https://gitcode.com/hf_mirrors/GanymedeNil/text2vec-large-chinese 
