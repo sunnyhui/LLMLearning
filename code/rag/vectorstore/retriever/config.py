@@ -1,7 +1,8 @@
 import os
 
-CHROMA_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "chroma_db")
-CHUNKS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "splitchunk", "output", "chunks.json")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+CHROMA_DB_PATH = os.path.join(BASE_DIR, "chroma_db")
+CHUNKS_FILE = os.path.join(BASE_DIR, "splitchunk", "output", "chunks.json")
 COLLECTION_NAME = "qieshitianxia_knowledge_base"
 
 TOP_K_VECTOR = 5

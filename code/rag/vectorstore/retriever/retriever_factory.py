@@ -74,9 +74,9 @@ class RetrieverFactory:
                     content=r.content,
                     metadata=r.metadata,
                     score=r.rerank_score,
-                    rank=r.rerank_score
+                    rank=rank
                 )
-                for r in rerank_results
+                for rank, r in enumerate(rerank_results, 1)
             ]
 
         return retriever.search(query, top_k)

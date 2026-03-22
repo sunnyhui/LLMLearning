@@ -4,6 +4,13 @@ from typing import List, Dict, Any
 from collections import defaultdict
 import chromadb
 from rank_bm25 import BM25Okapi
+
+try:
+    import jieba
+    JIEBA_AVAILABLE = True
+except ImportError:
+    JIEBA_AVAILABLE = False
+
 from .config import (
     CHROMA_DB_PATH,
     CHUNKS_FILE,
@@ -13,6 +20,12 @@ from .config import (
 )
 from .base_retriever import BaseRetriever, SearchResult
 from .vector_retriever import VectorRetriever
+
+
+def tokenize(text: str) -> List[str]:
+    if JIEBA_AVAILABLE:
+        return list(jieba.cut(text))
+    return text.split()
 
 
 class HybridRetriever(BaseRetriever):
@@ -34,8 +47,10 @@ class HybridRetriever(BaseRetriever):
 
     def _initialize_bm25(self):
         print("正在初始化 BM25 索引...")
+        if not JIEBA_AVAILABLE:
+            print("警告: jieba 未安装，BM25 将使用空格分词，对中文效果较差。建议运行: pip install jieba")
         self.chunks_data = self._load_chunks()
-        tokenized_corpus = [doc['content'].split() for doc in self.chunks_data]
+        tokenized_corpus = [tokenize(doc['content']) for doc in self.chunks_data]
         self.bm25 = BM25Okapi(tokenized_corpus)
         print(f"BM25 索引初始化完成，共 {len(self.chunks_data)} 个文档")
 
@@ -48,7 +63,7 @@ class HybridRetriever(BaseRetriever):
         return data['chunks']
 
     def _bm25_search(self, query: str, top_k: int) -> List[SearchResult]:
-        tokenized_query = query.split()
+        tokenized_query = tokenize(query)
         scores = self.bm25.get_scores(tokenized_query)
 
         results_with_scores = []
@@ -122,7 +137,43 @@ class HybridRetriever(BaseRetriever):
 
         return fused_results
 
-    def search(self, query: str, top_k: int = None, alpha: float = None) -> List[SearchResult]:
+    def _weighted_fusion(
+        self,
+        vector_results: List[SearchResult],
+        bm25_results: List[SearchResult],
+        alpha: float = 0.5
+    ) -> List[SearchResult]:
+        vector_results = self._normalize_scores(vector_results)
+        bm25_results = self._normalize_scores(bm25_results)
+
+        scores = {}
+        result_map = {}
+
+        for result in vector_results:
+            scores[result.id] = alpha * result.score
+            result_map[result.id] = result
+
+        for result in bm25_results:
+            if result.id in scores:
+                scores[result.id] += (1 - alpha) * result.score
+            else:
+                scores[result.id] = (1 - alpha) * result.score
+                result_map[result.id] = result
+
+        fused_results = []
+        for chunk_id, score in sorted(scores.items(), key=lambda x: x[1], reverse=True):
+            result = result_map[chunk_id]
+            fused_results.append(SearchResult(
+                id=chunk_id,
+                content=result.content,
+                metadata=result.metadata,
+                score=score,
+                rank=len(fused_results) + 1
+            ))
+
+        return fused_results
+
+    def search(self, query: str, top_k: int = None, alpha: float = None, fusion_method: str = "rrf") -> List[SearchResult]:
         if top_k is None:
             top_k = self.top_k
         if alpha is None:
@@ -140,5 +191,8 @@ class HybridRetriever(BaseRetriever):
         if not bm25_results:
             return vector_results[:top_k]
 
-        fused_results = self._rrf_fusion(vector_results, bm25_results)
+        if fusion_method == "weighted":
+            fused_results = self._weighted_fusion(vector_results, bm25_results, alpha)
+        else:
+            fused_results = self._rrf_fusion(vector_results, bm25_results)
         return fused_results[:top_k]
