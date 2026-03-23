@@ -71,4 +71,5 @@ package-lock.json
 
 # RAG specific - vector database
 chroma_db/
+model/
 

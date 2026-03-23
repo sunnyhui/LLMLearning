@@ -4,6 +4,7 @@ from typing import List, Dict, Any
 from tqdm import tqdm
 import chromadb
 from chromadb.utils import embedding_functions
+from sentence_transformers import SentenceTransformer
 from config import (
     CHUNKS_FILE,
     CHROMA_DB_PATH,
@@ -11,6 +12,22 @@ from config import (
     BATCH_SIZE,
     MODEL_NAME
 )
+
+from chromadb.api.types import EmbeddingFunction, Documents
+
+# 创建自定义嵌入函数类
+class CustomEmbeddingFunction(EmbeddingFunction):
+    def __init__(self, model_path):
+        from sentence_transformers import SentenceTransformer
+        self.model = SentenceTransformer(model_path)
+    
+    def __call__(self, input: Documents) -> list:
+        if isinstance(input, str):
+            return self.model.encode([input]).tolist()
+        return self.model.encode(input).tolist()
+
+def create_embedding_function(model_path):
+    return CustomEmbeddingFunction(model_path)
 
 
 def load_chunks(file_path: str) -> Dict[str, Any]:
@@ -26,6 +43,9 @@ def initialize_chromadb(db_path: str, collection_name: str):
     os.makedirs(db_path, exist_ok=True)
     client = chromadb.PersistentClient(path=db_path)
     
+    print(f"加载模型: {MODEL_NAME}")
+    embedding_func = create_embedding_function(MODEL_NAME)
+    
     try:
         collection = client.get_collection(name=collection_name)
         print(f"集合 '{collection_name}' 已存在，包含 {collection.count()} 条记录")
@@ -36,7 +56,8 @@ def initialize_chromadb(db_path: str, collection_name: str):
     
     collection = client.create_collection(
         name=collection_name,
-        metadata={"hnsw:space": "cosine"}
+        metadata={"hnsw:space": "cosine"},
+        embedding_function=embedding_func
     )
     
     return client, collection
@@ -87,7 +108,7 @@ def main():
     print(f"向量数据库路径: {CHROMA_DB_PATH}")
     print(f"集合名称: {COLLECTION_NAME}")
     print(f"总文本块数: {len(chunks)}")
-    print("使用模型: ChromaDB默认模型 (all-MiniLM-L6-v2)")
+    print(f"使用模型: {MODEL_NAME}")
     print("="*60)
 
 

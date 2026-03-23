@@ -5,7 +5,7 @@ CHUNKS_FILE = os.path.join(BASE_DIR, "splitchunk", "output", "chunks.json")
 CHROMA_DB_PATH = os.path.join(BASE_DIR, "chroma_db")
 COLLECTION_NAME = "qieshitianxia_knowledge_base"
 
-MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+MODEL_NAME = os.path.join(BASE_DIR, "..", "..", "model", "text2vec-large-chinese")
 BATCH_SIZE = 32
 VECTOR_DIMENSION = 768
 
