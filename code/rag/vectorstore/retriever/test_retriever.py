@@ -8,7 +8,9 @@ from retriever.retriever_factory import RetrieverFactory, RetrieverType
 from retriever.base_retriever import SearchResult
 from retriever.reranker import Reranker
 
-
+queries = [
+        "修罗阵",
+    ]
 def print_results(results, title="搜索结果"):
     print("\n" + "=" * 70)
     print(f"  {title}")
@@ -57,12 +59,8 @@ def test_vector_retriever():
     info = retriever.get_collection_info()
     print(f"集合信息: {info}")
 
-    queries = [
-        "修罗阵",
-    ]
-
     for query in queries:
-        results = retriever.search(query, top_k=3)
+        results = retriever.search(query, top_k=10)
         print_results(results, f"向量检索: '{query}'")
 
 
@@ -74,12 +72,8 @@ def test_hybrid_retriever():
     try:
         retriever = HybridRetriever()
 
-        queries = [
-            "修罗阵"
-        ]
-
         for query in queries:
-            results = retriever.search(query, top_k=3)
+            results = retriever.search(query, top_k=10)
             print_results(results, f"混合检索: '{query}'")
     except ImportError as e:
         print(f"混合检索测试跳过: {e}")
@@ -94,7 +88,7 @@ def test_reranker():
         retriever = VectorRetriever()
         reranker = Reranker()
 
-        query = "白袍老者和黑袍老者下棋"
+        query = queries[0]
 
         print(f"\n查询: '{query}'")
         print("正在获取初始检索结果...")
@@ -117,15 +111,13 @@ def test_retriever_factory():
     print("#  测试 4: 检索工厂 (Retriever Factory)")
     print("#" * 70)
 
-    queries = ["乱世"]
-
     print("\n--- 切换到向量检索模式 ---")
     results = RetrieverFactory.search(
         query=queries[0],
-        retriever_type=RetrieverType.VECTOR,
-        top_k=3
+        retriever_type=RetrieverType.HYBRID,
+        top_k=10
     )
-    print_results(results, f"工厂-向量检索: '{queries[0]}'")
+    print_results(results, f"工厂-混合检索: '{queries[0]}'")
 
 
 def main():
@@ -133,11 +125,11 @@ def main():
     print("  RAG 检索系统测试")
     print("=" * 70)
 
-    test_vector_retriever()
+    # test_vector_retriever()
 
-    test_hybrid_retriever()
+    # test_hybrid_retriever()
 
-    test_reranker()
+    # test_reranker()
 
     test_retriever_factory()
 

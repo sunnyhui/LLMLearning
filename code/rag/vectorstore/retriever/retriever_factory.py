@@ -58,7 +58,9 @@ class RetrieverFactory:
         top_k: int = TOP_K_VECTOR,
         use_reranker: bool = ENABLE_RERANKER,
         top_k_initial: int = TOP_K_INITIAL,
-        top_k_final: int = TOP_K_FINAL
+        top_k_final: int = TOP_K_FINAL,
+        alpha: float = 0.5,
+        fusion_method: str = "rrf"
     ) -> List[SearchResult]:
         retriever = cls.create_retriever(retriever_type)
 
@@ -79,7 +81,7 @@ class RetrieverFactory:
                 for rank, r in enumerate(rerank_results, 1)
             ]
 
-        return retriever.search(query, top_k)
+        return retriever.search(query, top_k, alpha=alpha, fusion_method=fusion_method)
 
     @classmethod
     def reset(cls):

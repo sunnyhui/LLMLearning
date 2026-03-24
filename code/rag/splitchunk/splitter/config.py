@@ -1,6 +1,6 @@
 from typing import List
 
-CHUNK_SIZE = 500
+CHUNK_SIZE = 100
 CHUNK_OVERLAP = 80
 SEPARATORS = ["\n\n", "\n", "。", "？", "！", "；", "，", ""]
 
